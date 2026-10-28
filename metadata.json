@@ -1,0 +1,6 @@
+{
+  "name": "Khel Utsav - Sports Registration & Sheet Sync",
+  "description": "Block-level sports registration portal with school UDISE search, game/gender card forms, and real-time Google Apps Script & Sheets synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
