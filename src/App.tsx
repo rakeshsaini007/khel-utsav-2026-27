@@ -431,11 +431,54 @@ export default function App() {
       return;
     }
 
-    // Strict validation: Aadhaar number if provided must be exactly 12 digits
+    // Strict uniqueness validation: PEN, Unique ID, Aadhaar, Birth Certificate must be unique
+    const currentId = formData.id;
+    const currentRow = formData.rowNumber;
+    const otherRecords = records.filter(r => {
+      if (currentId && r.id && r.id === currentId) return false;
+      if (currentRow && r.rowNumber && r.rowNumber === currentRow) return false;
+      return true;
+    });
+
+    const cleanPen = (formData.penNumber || '').trim();
+    if (cleanPen) {
+      const dupPen = otherRecords.find(r => (r.penNumber || '').trim() === cleanPen);
+      if (dupPen) {
+        alert(`अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से छात्र "${dupPen.studentName}" (${dupPen.schoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`);
+        return;
+      }
+    }
+
+    const cleanUnique = (formData.uniqueIdNumber || '').trim();
+    if (cleanUnique) {
+      const dupUnique = otherRecords.find(r => (r.uniqueIdNumber || '').trim() === cleanUnique);
+      if (dupUnique) {
+        alert(`अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से छात्र "${dupUnique.studentName}" (${dupUnique.schoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`);
+        return;
+      }
+    }
+
+    // Strict validation: Aadhaar number if provided must be exactly 12 digits and unique
     const aadhaarDigits = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
-    if (aadhaarDigits.length > 0 && aadhaarDigits.length !== 12) {
-      alert(`आधार नंबर ठीक 12 अंकों का होना चाहिए! (वर्तमान में ${aadhaarDigits.length} अंक हैं)`);
-      return;
+    if (aadhaarDigits.length > 0) {
+      if (aadhaarDigits.length !== 12) {
+        alert(`आधार नंबर ठीक 12 अंकों का होना चाहिए! (वर्तमान में ${aadhaarDigits.length} अंक हैं)`);
+        return;
+      }
+      const dupAadhaar = otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === aadhaarDigits);
+      if (dupAadhaar) {
+        alert(`अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र "${dupAadhaar.studentName}" (${dupAadhaar.schoolName}) के लिए दर्ज है! कृपया सही व अद्वितीय आधार नंबर दर्ज करें।`);
+        return;
+      }
+    }
+
+    const cleanBirthCert = (formData.birthCertNumber || '').trim().toLowerCase();
+    if (cleanBirthCert) {
+      const dupBirth = otherRecords.find(r => (r.birthCertNumber || '').trim().toLowerCase() === cleanBirthCert);
+      if (dupBirth) {
+        alert(`अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${formData.birthCertNumber}) पहले से छात्र "${dupBirth.studentName}" (${dupBirth.schoolName}) के लिए दर्ज है! कृपया अद्वितीय क्रमांक दर्ज करें।`);
+        return;
+      }
     }
 
     // Ensure all 5 Hindi-only inputs are converted and filtered to pure Hindi Devanagari
@@ -566,6 +609,7 @@ export default function App() {
                   onInputChange={handleInputChange}
                   onSubmit={handleSubmit}
                   onClear={handleResetToNew}
+                  existingRecords={records}
                 />
               </>
             )}

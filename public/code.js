@@ -705,6 +705,52 @@ function doPost(e) {
       }
     }
 
+    // 3. विशिष्ट मानों की जांच (Uniqueness Validation for PEN, Unique ID, Aadhaar, Birth Certificate)
+    const cleanPen = String(penNumber || "").replace(/^'/, "").trim();
+    const cleanUnique = String(uniqueIdNumber || "").replace(/^'/, "").trim();
+    const cleanAadhaar = String(aadhaarNumber || "").replace(/[^0-9]/g, "").trim();
+    const cleanBirthCert = String(birthCertNumber || "").trim().toLowerCase();
+
+    for (let i = 3; i < data.length; i++) {
+      if (targetRow && (i + 1) === targetRow) continue; // Skip current row if updating
+
+      const r = data[i];
+      const rPen = String(r[5] || "").replace(/^'/, "").trim();
+      const rUnique = String(r[6] || "").replace(/^'/, "").trim();
+      const rStudentName = String(r[7] || "").trim();
+      const rSchoolName = String(r[11] || "").trim();
+      const rAadhaar = String(r[16] || "").replace(/[^0-9]/g, "").trim();
+      const rBirthCert = String(r[17] || "").trim().toLowerCase();
+
+      if (cleanPen && rPen && rPen.toLowerCase() === cleanPen.toLowerCase()) {
+        return createJsonResponse({
+          status: "error",
+          message: `अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`
+        });
+      }
+
+      if (cleanUnique && rUnique && rUnique.toLowerCase() === cleanUnique.toLowerCase()) {
+        return createJsonResponse({
+          status: "error",
+          message: `अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`
+        });
+      }
+
+      if (cleanAadhaar && cleanAadhaar.length === 12 && rAadhaar && rAadhaar === cleanAadhaar) {
+        return createJsonResponse({
+          status: "error",
+          message: `अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`
+        });
+      }
+
+      if (cleanBirthCert && rBirthCert && rBirthCert === cleanBirthCert) {
+        return createJsonResponse({
+          status: "error",
+          message: `अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${birthCertNumber}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय जन्म प्रमाण पत्र क्रमांक दर्ज करें।`
+        });
+      }
+    }
+
     const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT+5:30", "dd/MM/yyyy HH:mm:ss");
 
     if (targetRow) {

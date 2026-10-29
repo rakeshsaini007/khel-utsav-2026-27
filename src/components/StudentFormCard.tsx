@@ -11,7 +11,9 @@ import {
   Send, 
   RefreshCw, 
   Trash2,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { StudentRegistration } from '../types';
 import { convertToHindi, filterStrictHindiOnly } from '../utils/hindiHelper';
@@ -23,6 +25,7 @@ interface StudentFormCardProps {
   onInputChange: (field: keyof StudentRegistration, value: any) => void;
   onSubmit: (e: React.FormEvent) => void;
   onClear: () => void;
+  existingRecords?: StudentRegistration[];
 }
 
 export const StudentFormCard: React.FC<StudentFormCardProps> = ({
@@ -32,7 +35,84 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
   onInputChange,
   onSubmit,
   onClear,
+  existingRecords = [],
 }) => {
+  // Check for duplicate unique values (PEN, Unique ID, Aadhaar, Birth Certificate)
+  const duplicates = React.useMemo(() => {
+    if (!existingRecords || existingRecords.length === 0) {
+      return { pen: null, uniqueId: null, aadhaar: null, birthCert: null, hasDuplicates: false };
+    }
+
+    const currentId = formData.id;
+    const currentRow = formData.rowNumber;
+
+    // Filter out the current record being edited so it doesn't collide with itself
+    const otherRecords = existingRecords.filter(r => {
+      if (currentId && r.id && r.id === currentId) return false;
+      if (currentRow && r.rowNumber && r.rowNumber === currentRow) return false;
+      return true;
+    });
+
+    // 1. Check PEN Number (must be unique)
+    const cleanPen = (formData.penNumber || '').trim();
+    const penDup = cleanPen 
+      ? otherRecords.find(r => (r.penNumber || '').trim() === cleanPen)
+      : null;
+
+    // 2. Check Student Unique ID (must be unique)
+    const cleanUnique = (formData.uniqueIdNumber || '').trim();
+    const uniqueDup = cleanUnique 
+      ? otherRecords.find(r => (r.uniqueIdNumber || '').trim() === cleanUnique)
+      : null;
+
+    // 3. Check Aadhaar Number (must be unique, compare raw 12 digits)
+    const cleanAadhaar = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
+    const aadhaarDup = cleanAadhaar.length === 12
+      ? otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === cleanAadhaar)
+      : null;
+
+    // 4. Check Birth Certificate Number (must be unique)
+    const cleanBirth = (formData.birthCertNumber || '').trim().toLowerCase();
+    const birthDup = cleanBirth
+      ? otherRecords.find(r => (r.birthCertNumber || '').trim().toLowerCase() === cleanBirth)
+      : null;
+
+    return {
+      pen: penDup || null,
+      uniqueId: uniqueDup || null,
+      aadhaar: aadhaarDup || null,
+      birthCert: birthDup || null,
+      hasDuplicates: Boolean(penDup || uniqueDup || aadhaarDup || birthDup)
+    };
+  }, [existingRecords, formData.id, formData.rowNumber, formData.penNumber, formData.uniqueIdNumber, formData.aadhaarNumber, formData.birthCertNumber]);
+
+  // Form submit handler with strict uniqueness validation rejection
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (duplicates.pen) {
+      alert(`⚠️ अस्वीकार्य (Duplicate Value): यह PEN (${formData.penNumber}) पहले से छात्र "${duplicates.pen.studentName}" (${duplicates.pen.schoolName}) के लिए दर्ज है! कृपया अद्वितीय (Unique) PEN दर्ज करें।`);
+      return;
+    }
+
+    if (duplicates.uniqueId) {
+      alert(`⚠️ अस्वीकार्य (Duplicate Value): यह यूनिक आईडी नंबर (${formData.uniqueIdNumber}) पहले से छात्र "${duplicates.uniqueId.studentName}" (${duplicates.uniqueId.schoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`);
+      return;
+    }
+
+    if (duplicates.aadhaar) {
+      alert(`⚠️ अस्वीकार्य (Duplicate Value): यह आधार नंबर (${formData.aadhaarNumber}) पहले से छात्र "${duplicates.aadhaar.studentName}" (${duplicates.aadhaar.schoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`);
+      return;
+    }
+
+    if (duplicates.birthCert) {
+      alert(`⚠️ अस्वीकार्य (Duplicate Value): यह जन्म प्रमाण पत्र क्रमांक (${formData.birthCertNumber}) पहले से छात्र "${duplicates.birthCert.studentName}" (${duplicates.birthCert.schoolName}) के लिए दर्ज है! कृपया अद्वितीय जन्म प्रमाण पत्र क्रमांक दर्ज करें।`);
+      return;
+    }
+
+    onSubmit(e);
+  };
+
   // Helper for Hindi-only fields: auto-transliterates English phonetics on space and strictly filters non-Hindi on blur
   const handleHindiChange = (field: keyof StudentRegistration, val: string) => {
     // If ending with space or punctuation, transliterate completed phonetic word
@@ -49,8 +129,9 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
     const converted = convertToHindi(val);
     onInputChange(field, filterStrictHindiOnly(converted));
   };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 overflow-hidden transition-all hover:shadow-lg">
         
         {/* Card Header */}
@@ -104,13 +185,28 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* PEN (Permanent Education Number) */}
+              {/* PEN (Permanent Education Number) - Selector 1 */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                   <span>PEN (Permanent Education Number) <span className="text-rose-500">*</span></span>
-                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                    केवल अंक (0-9)
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                      केवल अंक
+                    </span>
+                    {duplicates.pen ? (
+                      <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-300 animate-pulse flex items-center gap-0.5">
+                        <AlertCircle className="w-3 h-3" /> डुप्लिकेट (अस्वीकार्य)
+                      </span>
+                    ) : formData.penNumber.trim() ? (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> अद्वितीय
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-purple-50 text-purple-700 font-bold px-1.5 py-0.5 rounded border border-purple-200">
+                        अद्वितीय अनिवार्य
+                      </span>
+                    )}
+                  </div>
                 </label>
                 <div className="relative">
                   <input
@@ -124,19 +220,49 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                       onInputChange('penNumber', numericVal);
                     }}
                     placeholder="उदा. 21090503065"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className={`w-full pl-9 pr-8 py-2 rounded-xl text-sm font-mono font-semibold transition-all ${
+                      duplicates.pen
+                        ? 'bg-rose-50/70 border-2 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 focus:bg-rose-50 focus:border-rose-600 focus:outline-none'
+                        : 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none'
+                    }`}
                   />
-                  <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <CreditCard className={`w-4 h-4 absolute left-3 top-3 ${duplicates.pen ? 'text-rose-500' : 'text-slate-400'}`} />
+                  {duplicates.pen && (
+                    <AlertCircle className="w-4 h-4 text-rose-600 absolute right-3 top-3 animate-pulse" />
+                  )}
                 </div>
+                {duplicates.pen && (
+                  <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 flex items-start space-x-1.5 shadow-2xs animate-fadeIn">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                    <span>
+                      <b>त्रुटि (Duplicate PEN):</b> यह PEN पहले से छात्र <b>{duplicates.pen.studentName}</b> ({duplicates.pen.schoolName}) के लिए दर्ज है! यह मान स्वीकार नहीं किया जाएगा।
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* छात्र/छात्रा का यूनिक आईडी नंबर (Separate Field) */}
+              {/* छात्र/छात्रा का यूनिक आईडी नंबर (Separate Field) - Selector 2 */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                   <span>छात्र/छात्रा का यूनिक आईडी नंबर <span className="text-rose-500">*</span></span>
-                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                    केवल अंक (0-9)
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                      केवल अंक
+                    </span>
+                    {duplicates.uniqueId ? (
+                      <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-300 animate-pulse flex items-center gap-0.5">
+                        <AlertCircle className="w-3 h-3" /> डुप्लिकेट (अस्वीकार्य)
+                      </span>
+                    ) : formData.uniqueIdNumber.trim() ? (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> अद्वितीय
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-purple-50 text-purple-700 font-bold px-1.5 py-0.5 rounded border border-purple-200">
+                        अद्वितीय अनिवार्य
+                      </span>
+                    )}
+                  </div>
                 </label>
                 <div className="relative">
                   <input
@@ -150,10 +276,25 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                       onInputChange('uniqueIdNumber', numericVal);
                     }}
                     placeholder="उदा. 984512093"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className={`w-full pl-9 pr-8 py-2 rounded-xl text-sm font-mono font-semibold transition-all ${
+                      duplicates.uniqueId
+                        ? 'bg-rose-50/70 border-2 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 focus:bg-rose-50 focus:border-rose-600 focus:outline-none'
+                        : 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none'
+                    }`}
                   />
-                  <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <CreditCard className={`w-4 h-4 absolute left-3 top-3 ${duplicates.uniqueId ? 'text-rose-500' : 'text-slate-400'}`} />
+                  {duplicates.uniqueId && (
+                    <AlertCircle className="w-4 h-4 text-rose-600 absolute right-3 top-3 animate-pulse" />
+                  )}
                 </div>
+                {duplicates.uniqueId && (
+                  <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 flex items-start space-x-1.5 shadow-2xs animate-fadeIn">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                    <span>
+                      <b>त्रुटि (Duplicate Unique ID):</b> यह यूनिक आईडी नंबर पहले से छात्र <b>{duplicates.uniqueId.studentName}</b> ({duplicates.uniqueId.schoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Winner Student Name - Hindi Only */}
@@ -272,23 +413,29 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                 </div>
               </div>
 
-              {/* Aadhaar Number */}
+              {/* Aadhaar Number - Selector 3 */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                   <span>आधार नंबर (Aadhaar Number)</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors ${
-                    (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length === 12
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                      : (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length > 0
-                        ? 'bg-amber-50 text-amber-700 border-amber-300'
-                        : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}>
-                    {(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length === 12
-                      ? '✓ ठीक 12 अंक पूर्ण'
-                      : (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length > 0
-                        ? `⚠️ ठीक 12 अंक आवश्यक (${(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length}/12)`
-                        : 'केवल ठीक 12 अंक (Exact 12 Digits)'}
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    {duplicates.aadhaar ? (
+                      <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-300 animate-pulse flex items-center gap-0.5">
+                        <AlertCircle className="w-3 h-3" /> डुप्लिकेट आधार (अस्वीकार्य)
+                      </span>
+                    ) : (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length === 12 ? (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> ✓ 12 अंक अद्वितीय
+                      </span>
+                    ) : (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length > 0 ? (
+                      <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded border border-amber-300">
+                        ⚠️ ठीक 12 अंक आवश्यक ({(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length}/12)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                        केवल ठीक 12 अंक (अद्वितीय)
+                      </span>
+                    )}
+                  </div>
                 </label>
                 <div className="relative">
                   <input
@@ -305,11 +452,25 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                       onInputChange('aadhaarNumber', formatted);
                     }}
                     placeholder="उदा. 1234 5678 9012"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className={`w-full pl-9 pr-8 py-2 rounded-xl text-sm font-mono font-semibold transition-all ${
+                      duplicates.aadhaar
+                        ? 'bg-rose-50/70 border-2 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 focus:bg-rose-50 focus:border-rose-600 focus:outline-none'
+                        : 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none'
+                    }`}
                   />
-                  <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <CreditCard className={`w-4 h-4 absolute left-3 top-3 ${duplicates.aadhaar ? 'text-rose-500' : 'text-slate-400'}`} />
+                  {duplicates.aadhaar && (
+                    <AlertCircle className="w-4 h-4 text-rose-600 absolute right-3 top-3 animate-pulse" />
+                  )}
                 </div>
-                {(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length > 0 &&
+                {duplicates.aadhaar ? (
+                  <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 flex items-start space-x-1.5 shadow-2xs animate-fadeIn">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                    <span>
+                      <b>त्रुटि (Duplicate Aadhaar):</b> यह आधार नंबर पहले से छात्र <b>{duplicates.aadhaar.studentName}</b> ({duplicates.aadhaar.schoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है और यह मान स्वीकार नहीं किया जाएगा।
+                    </span>
+                  </div>
+                ) : (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length > 0 &&
                   (formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length < 12 && (
                     <p className="text-[11px] text-amber-600 mt-1 font-medium">
                       ⚠️ आधार नंबर में ठीक 12 अंक होने चाहिए (वर्तमान में {(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length} अंक दर्ज हैं)
@@ -329,18 +490,50 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Birth Certificate Number */}
+              {/* Birth Certificate Number - Selector 4 */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  जन्म प्रमाण पत्र क्रमांक
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>जन्म प्रमाण पत्र क्रमांक</span>
+                  <div className="flex items-center space-x-1">
+                    {duplicates.birthCert ? (
+                      <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-300 animate-pulse flex items-center gap-0.5">
+                        <AlertCircle className="w-3 h-3" /> डुप्लिकेट (अस्वीकार्य)
+                      </span>
+                    ) : formData.birthCertNumber.trim() ? (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> अद्वितीय
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-purple-50 text-purple-700 font-bold px-1.5 py-0.5 rounded border border-purple-200">
+                        अद्वितीय अनिवार्य
+                      </span>
+                    )}
+                  </div>
                 </label>
-                <input
-                  type="text"
-                  value={formData.birthCertNumber}
-                  onChange={(e) => onInputChange('birthCertNumber', e.target.value)}
-                  placeholder="उदा. B-2015/9482"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.birthCertNumber}
+                    onChange={(e) => onInputChange('birthCertNumber', e.target.value)}
+                    placeholder="उदा. B-2015/9482"
+                    className={`w-full px-3 py-2 rounded-xl text-sm font-mono transition-all ${
+                      duplicates.birthCert
+                        ? 'bg-rose-50/70 border-2 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 focus:bg-rose-50 focus:border-rose-600 focus:outline-none'
+                        : 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none'
+                    }`}
+                  />
+                  {duplicates.birthCert && (
+                    <AlertCircle className="w-4 h-4 text-rose-600 absolute right-3 top-3 animate-pulse" />
+                  )}
+                </div>
+                {duplicates.birthCert && (
+                  <div className="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 flex items-start space-x-1.5 shadow-2xs animate-fadeIn">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                    <span>
+                      <b>त्रुटि (Duplicate Birth Certificate):</b> यह जन्म प्रमाण पत्र क्रमांक पहले से छात्र <b>{duplicates.birthCert.studentName}</b> ({duplicates.birthCert.schoolName}) के लिए दर्ज है! यह मान स्वीकार नहीं किया जाएगा।
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Birth Certificate Issuing Authority - Dropdown List */}
@@ -536,8 +729,20 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
         </div>
 
         {/* Card Footer Actions - Dynamic Button Change */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-end">
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          {duplicates.hasDuplicates ? (
+            <div className="flex items-center space-x-2 text-rose-700 text-xs font-bold animate-pulse">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>⚠️ फ़ॉर्म में डुप्लिकेट मान मौजूद हैं! कृपया केवल अद्वितीय मान ही दर्ज करें।</span>
+            </div>
+          ) : (
+            <div className="text-slate-500 text-xs flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>PEN, यूनिक आईडी, आधार नंबर एवं जन्म प्रमाण पत्र अद्वितीय होना अनिवार्य है</span>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={onClear}
@@ -549,10 +754,10 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
             {/* DYNAMIC BUTTON: Changes between Submit and Update */}
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || duplicates.hasDuplicates}
               className={`w-1/2 sm:w-auto min-w-[200px] px-6 py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition-all transform active:scale-98 ${
-                isSaving
-                  ? 'bg-slate-400 text-white cursor-not-allowed'
+                isSaving || duplicates.hasDuplicates
+                  ? 'bg-slate-400 text-white cursor-not-allowed opacity-80'
                   : isExisting
                   ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-amber-500/20'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/20'
@@ -562,6 +767,11 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>गूगल शीट में प्रेषित...</span>
+                </>
+              ) : duplicates.hasDuplicates ? (
+                <>
+                  <AlertCircle className="w-4 h-4 text-white" />
+                  <span>डुप्लिकेट मान अस्वीकार्य है</span>
                 </>
               ) : isExisting ? (
                 <>

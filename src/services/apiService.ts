@@ -305,6 +305,10 @@ export async function submitRegistration(data: StudentRegistration): Promise<{
           json = { status: 'success' };
         }
 
+        if (json.status === 'error') {
+          throw new Error(json.message || 'गूगल शीट में प्रविष्टि अस्वीकृत हो गई।');
+        }
+
         if (json.status === 'success') {
           isLive = true;
           action = json.action || action;
@@ -319,7 +323,10 @@ export async function submitRegistration(data: StudentRegistration): Promise<{
           }
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message && err.message.includes('अस्वीकार्य')) {
+        throw err;
+      }
       console.warn('GAS POST failed or blocked by CORS, falling back to local store:', err);
     }
   }
