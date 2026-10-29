@@ -343,18 +343,62 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                 />
               </div>
 
-              {/* Birth Certificate Issuing Authority */}
+              {/* Birth Certificate Issuing Authority - Dropdown List */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  प्रमाण पत्र जारीकर्ता का पद नाम
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>प्रमाण पत्र जारीकर्ता का पद नाम</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                    ड्रॉपडाउन सूची
+                  </span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.birthCertAuthority}
-                  onChange={(e) => onInputChange('birthCertAuthority', e.target.value)}
-                  placeholder="उदा. ग्राम विकास अधिकारी / रजिस्ट्रार"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+                <div className="relative">
+                  <select
+                    value={formData.birthCertAuthority || 'ग्राम विकास अधिकारी'}
+                    onChange={(e) => onInputChange('birthCertAuthority', e.target.value)}
+                    className="w-full pl-9 pr-7 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                  >
+                    {[
+                      'ग्राम विकास अधिकारी',
+                      'ग्राम पंचायत अधिकारी',
+                      'रजिस्ट्रार जन्म एवं मृत्यु',
+                      'चिकित्सा अधिकारी / PHC / CHC',
+                      'नगर पालिका परिषद / नगर पंचायत',
+                      'अन्य'
+                    ].map((auth) => (
+                      <option key={auth} value={auth}>
+                        {auth}
+                      </option>
+                    ))}
+                    {formData.birthCertAuthority && 
+                      ![
+                        'ग्राम विकास अधिकारी',
+                        'ग्राम पंचायत अधिकारी',
+                        'रजिस्ट्रार जन्म एवं मृत्यु',
+                        'चिकित्सा अधिकारी / PHC / CHC',
+                        'नगर पालिका परिषद / नगर पंचायत',
+                        'अन्य'
+                      ].includes(formData.birthCertAuthority) && (
+                        <option value={formData.birthCertAuthority}>
+                          {formData.birthCertAuthority}
+                        </option>
+                    )}
+                  </select>
+                  <FileCheck className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400 text-xs">
+                    ▼
+                  </div>
+                </div>
+
+                {formData.birthCertAuthority === 'अन्य' && (
+                  <input
+                    type="text"
+                    lang="hi"
+                    onChange={(e) => handleHindiChange('birthCertAuthority', e.target.value)}
+                    onBlur={(e) => handleHindiBlur('birthCertAuthority', e.target.value)}
+                    placeholder="अन्य सक्षम अधिकारी का नाम/पद दर्ज करें"
+                    className="w-full mt-2 px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                )}
               </div>
 
               {/* Identification Mark - Hindi Only */}
