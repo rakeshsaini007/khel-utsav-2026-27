@@ -458,18 +458,20 @@ export default function App() {
       }
     }
 
-    // Strict validation: Aadhaar number if provided must be exactly 12 digits and unique
+    // Strict validation: Aadhaar number is mandatory and must be exactly 12 digits & unique
     const aadhaarDigits = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
-    if (aadhaarDigits.length > 0) {
-      if (aadhaarDigits.length !== 12) {
-        alert(`आधार नंबर ठीक 12 अंकों का होना चाहिए! (वर्तमान में ${aadhaarDigits.length} अंक हैं)`);
-        return;
-      }
-      const dupAadhaar = otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === aadhaarDigits);
-      if (dupAadhaar) {
-        alert(`अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र "${dupAadhaar.studentName}" (${dupAadhaar.schoolName}) के लिए दर्ज है! कृपया सही व अद्वितीय आधार नंबर दर्ज करें।`);
-        return;
-      }
+    if (!aadhaarDigits) {
+      alert('आधार नंबर अनिवार्य है! कृपया ठीक 12 अंकों का वैध आधार नंबर दर्ज करें।');
+      return;
+    }
+    if (aadhaarDigits.length !== 12) {
+      alert(`आधार नंबर ठीक 12 अंकों का होना अनिवार्य है! (वर्तमान में ${aadhaarDigits.length} अंक हैं)`);
+      return;
+    }
+    const dupAadhaar = otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === aadhaarDigits);
+    if (dupAadhaar) {
+      alert(`अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र "${dupAadhaar.studentName}" (${dupAadhaar.schoolName}) के लिए दर्ज है! कृपया सही व अद्वितीय आधार नंबर दर्ज करें।`);
+      return;
     }
 
     const cleanBirthCert = (formData.birthCertNumber || '').trim().toLowerCase();
@@ -587,7 +589,7 @@ export default function App() {
             {/* Step 2 & 3: Opened ONLY after filling the UDISE code */}
             {isUdiseFilled && (
               <>
-                {/* Step 2: Game & Gender Selector with Existing Record Detector */}
+                {/* Step 2: Game & Gender Selector with Existing Record Detector & School's Students List */}
                 <GameAndGenderSelector
                   level={formData.level}
                   gameName={formData.gameName}
@@ -595,10 +597,16 @@ export default function App() {
                   schoolType={formData.schoolType}
                   existingRecord={existingRecord}
                   isChecking={isChecking}
+                  udiseCode={formData.udiseCode}
+                  schoolName={formData.schoolName}
+                  nyayPanchayat={formData.nyayPanchayat}
+                  schoolStudents={records.filter((r) => r.udiseCode?.trim() === formData.udiseCode?.trim())}
                   onLevelChange={handleLevelChange}
                   onGameChange={handleGameChange}
                   onGenderChange={handleGenderChange}
                   onResetToNew={handleResetToNew}
+                  onSelectStudent={handleEditRecordFromSheet}
+                  onViewAllSheet={() => setActiveTab('sheet')}
                 />
 
                 {/* Step 3: Complete Student Details Card (with Submit / Update dynamic button) */}

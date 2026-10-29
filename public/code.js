@@ -711,6 +711,20 @@ function doPost(e) {
     const cleanAadhaar = String(aadhaarNumber || "").replace(/[^0-9]/g, "").trim();
     const cleanBirthCert = String(birthCertNumber || "").trim().toLowerCase();
 
+    if (!cleanAadhaar) {
+      return createJsonResponse({
+        status: "error",
+        message: "आधार नंबर अनिवार्य है! कृपया ठीक 12 अंकों का वैध आधार नंबर दर्ज करें।"
+      });
+    }
+
+    if (cleanAadhaar.length !== 12) {
+      return createJsonResponse({
+        status: "error",
+        message: "आधार नंबर में ठीक 12 अंक होने अनिवार्य हैं! वर्तमान में " + cleanAadhaar.length + " अंक दर्ज हैं।"
+      });
+    }
+
     for (let i = 3; i < data.length; i++) {
       if (targetRow && (i + 1) === targetRow) continue; // Skip current row if updating
 
@@ -736,7 +750,7 @@ function doPost(e) {
         });
       }
 
-      if (cleanAadhaar && cleanAadhaar.length === 12 && rAadhaar && rAadhaar === cleanAadhaar) {
+      if (cleanAadhaar && rAadhaar && rAadhaar === cleanAadhaar) {
         return createJsonResponse({
           status: "error",
           message: `अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`

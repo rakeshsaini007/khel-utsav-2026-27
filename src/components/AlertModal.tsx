@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, RefreshCw, X, FileSpreadsheet, PlusCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle2, RefreshCw, X, PlusCircle } from 'lucide-react';
 import { StudentRegistration } from '../types';
 
 interface AlertModalProps {
@@ -9,7 +9,7 @@ interface AlertModalProps {
   record: StudentRegistration | null;
   isLive: boolean;
   onClose: () => void;
-  onViewSheet: () => void;
+  onViewSheet?: () => void;
   onRegisterNext: () => void;
 }
 
@@ -129,21 +129,13 @@ export const AlertModal: React.FC<AlertModalProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="pt-2">
             <button
               onClick={onRegisterNext}
-              className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition"
             >
               <PlusCircle className="w-4 h-4" />
               <span>नया छात्र भरें</span>
-            </button>
-
-            <button
-              onClick={onViewSheet}
-              className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>शीट रजिस्टर देखें</span>
             </button>
           </div>
         </div>

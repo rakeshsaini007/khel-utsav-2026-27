@@ -105,6 +105,17 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
       return;
     }
 
+    const rawAadhaar = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
+    if (!rawAadhaar) {
+      alert('⚠️ आधार नंबर अनिवार्य है! कृपया ठीक 12 अंकों का मान्य आधार नंबर दर्ज करें।');
+      return;
+    }
+
+    if (rawAadhaar.length !== 12) {
+      alert(`⚠️ आधार नंबर ठीक 12 अंकों का होना अनिवार्य है! वर्तमान में केवल ${rawAadhaar.length} अंक दर्ज हैं।`);
+      return;
+    }
+
     if (duplicates.birthCert) {
       alert(`⚠️ अस्वीकार्य (Duplicate Value): यह जन्म प्रमाण पत्र क्रमांक (${formData.birthCertNumber}) पहले से छात्र "${duplicates.birthCert.studentName}" (${duplicates.birthCert.schoolName}) के लिए दर्ज है! कृपया अद्वितीय जन्म प्रमाण पत्र क्रमांक दर्ज करें।`);
       return;
@@ -416,7 +427,7 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
               {/* Aadhaar Number - Selector 3 */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>आधार नंबर (Aadhaar Number)</span>
+                  <span>आधार नंबर (Aadhaar Number) <span className="text-rose-500">*</span></span>
                   <div className="flex items-center space-x-1">
                     {duplicates.aadhaar ? (
                       <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded border border-rose-300 animate-pulse flex items-center gap-0.5">
@@ -431,8 +442,8 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                         ⚠️ ठीक 12 अंक आवश्यक ({(formData.aadhaarNumber || '').replace(/[^0-9]/g, '').length}/12)
                       </span>
                     ) : (
-                      <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                        केवल ठीक 12 अंक (अद्वितीय)
+                      <span className="text-[10px] bg-rose-50 text-rose-700 font-bold px-1.5 py-0.5 rounded border border-rose-200">
+                        12 अंक अनिवार्य *
                       </span>
                     )}
                   </div>
@@ -443,6 +454,7 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                     inputMode="numeric"
                     pattern="[0-9\s]*"
                     maxLength={14}
+                    required
                     value={formData.aadhaarNumber}
                     onChange={(e) => {
                       // Extract only digits, strictly capped at 12 numerical digits
@@ -455,6 +467,8 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
                     className={`w-full pl-9 pr-8 py-2 rounded-xl text-sm font-mono font-semibold transition-all ${
                       duplicates.aadhaar
                         ? 'bg-rose-50/70 border-2 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 focus:bg-rose-50 focus:border-rose-600 focus:outline-none'
+                        : !formData.aadhaarNumber.trim()
+                        ? 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:border-rose-400 focus:outline-none'
                         : 'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none'
                     }`}
                   />
