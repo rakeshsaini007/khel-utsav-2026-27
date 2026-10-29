@@ -14,6 +14,7 @@ export interface StudentRegistration {
   level: string; // "प्राथमिक स्तर" | "उच्च प्राथमिक स्तर"
   gameName: string;
   gender: string; // "बालक" | "बालिका"
+  categorySheet?: 'PS BOYS' | 'PS GIRLS' | 'UPS BOYS' | 'UPS GIRLS' | string;
 
   // Student Details
   penNumber: string; // PEN (Permanent Education Number)

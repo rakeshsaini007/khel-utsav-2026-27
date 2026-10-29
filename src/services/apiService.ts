@@ -193,6 +193,74 @@ export async function fetchAllRecords(udiseFilter?: string): Promise<{ records: 
 }
 
 /**
+ * Compute the appropriate category sheet name based on Level & Gender
+ * • प्राथमिक स्तर + बालक => "PS BOYS"
+ * • प्राथमिक स्तर + बालिका => "PS GIRLS"
+ * • उच्च प्राथमिक स्तर + बालक => "UPS BOYS"
+ * • उच्च प्राथमिक स्तर + बालिका => "UPS GIRLS"
+ */
+export function getCategorySheetName(level?: string, gender?: string): 'PS BOYS' | 'PS GIRLS' | 'UPS BOYS' | 'UPS GIRLS' | '' {
+  const lvl = String(level || '').trim().toLowerCase();
+  const gnd = String(gender || '').trim().toLowerCase();
+
+  const isPS = (lvl.includes('प्राथमिक') && !lvl.includes('उच्च')) || lvl === 'ps';
+  const isUPS = lvl.includes('उच्च') || lvl.includes('ups');
+
+  const isBoy = gnd.includes('बालक') || gnd.includes('boy') || gnd.includes('male') || gnd === 'm';
+  const isGirl = gnd.includes('बालिका') || gnd.includes('कन्या') || gnd.includes('girl') || gnd.includes('female') || gnd === 'f';
+
+  if (isPS && isBoy) return 'PS BOYS';
+  if (isPS && isGirl) return 'PS GIRLS';
+  if (isUPS && isBoy) return 'UPS BOYS';
+  if (isUPS && isGirl) return 'UPS GIRLS';
+
+  if (isBoy) return isUPS ? 'UPS BOYS' : 'PS BOYS';
+  if (isGirl) return isUPS ? 'UPS GIRLS' : 'PS GIRLS';
+
+  return '';
+}
+
+/**
+ * Trigger full resync of all rows in Google Sheet to the 4 category sheets
+ */
+export async function triggerSyncCategories(): Promise<{ success: boolean; message: string }> {
+  if (isPlaceholderUrl()) {
+    return {
+      success: false,
+      message: 'कृपया पहले src/config.ts में अपना वास्तविक डिप्लॉयमेंट URL दर्ज करें।'
+    };
+  }
+
+  try {
+    const url = new URL(GOOGLE_APPS_SCRIPT_URL);
+    url.searchParams.set('action', 'syncCategories');
+
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      return {
+        success: json.status === 'success',
+        message: json.message || 'सभी 4 श्रेणी शीट्स (PS BOYS, PS GIRLS, UPS BOYS, UPS GIRLS) में डेटा सफलतापूर्वक सिंक हो गया!'
+      };
+    } else {
+      return {
+        success: false,
+        message: `सर्वर त्रुटि (Status: ${res.status})`
+      };
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: 'गूगल ऐप्स स्क्रिप्ट से संपर्क नहीं हो सका। सुनिश्चित करें कि Who has access = Anyone चुना गया है।'
+    };
+  }
+}
+
+/**
  * Submit or Update record in Google Sheet via Apps Script
  */
 export async function submitRegistration(data: StudentRegistration): Promise<{
@@ -203,8 +271,11 @@ export async function submitRegistration(data: StudentRegistration): Promise<{
   isLive: boolean;
 }> {
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const categorySheet = getCategorySheetName(data.level, data.gender);
+  
   const preparedData: StudentRegistration = {
     ...data,
+    categorySheet: categorySheet || data.categorySheet,
     timestamp: data.timestamp || timestamp,
     id: data.id || `reg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
   };
@@ -238,10 +309,13 @@ export async function submitRegistration(data: StudentRegistration): Promise<{
           isLive = true;
           action = json.action || action;
           message = json.message || (action === 'updated' 
-            ? 'गूगल शीट में रिकॉर्ड सफलतापूर्वक अपडेट हो गया!' 
-            : 'गूगल शीट में नया रिकॉर्ड सफलतापूर्वक दर्ज हो गया!');
+            ? `गूगल शीट में रिकॉर्ड एवं श्रेणी शीट (${preparedData.categorySheet}) में सफलतापूर्वक अपडेट हो गया!` 
+            : `गूगल शीट तथा श्रेणी शीट (${preparedData.categorySheet}) में नया रिकॉर्ड सफलतापूर्वक दर्ज हो गया!`);
           if (json.rowNumber) {
             preparedData.rowNumber = json.rowNumber;
+          }
+          if (json.categorySheet) {
+            preparedData.categorySheet = json.categorySheet;
           }
         }
       }

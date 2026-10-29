@@ -10,10 +10,13 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Key,
-  HelpCircle
+  HelpCircle,
+  Layers,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { GOOGLE_APPS_SCRIPT_URL } from '../config';
-import { isPlaceholderUrl } from '../services/apiService';
+import { isPlaceholderUrl, triggerSyncCategories } from '../services/apiService';
 
 interface GasSetupModalProps {
   isOpen: boolean;
@@ -24,6 +27,8 @@ export const GasSetupModal: React.FC<GasSetupModalProps> = ({ isOpen, onClose })
   const [copied, setCopied] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState('');
 
   if (!isOpen) return null;
 
@@ -73,6 +78,31 @@ export const GasSetupModal: React.FC<GasSetupModalProps> = ({ isOpen, onClose })
     } catch (err: any) {
       setTestStatus('error');
       setTestMessage('कनेक्ट नहीं हो सका। सुनिश्चित करें कि आपने "Web App" के रूप में डिप्लॉय किया है और "Who has access" में "Anyone" चुना है।');
+    }
+  };
+
+  const handleSyncCategorySheets = async () => {
+    if (isPlaceholder) {
+      setSyncStatus('error');
+      setSyncMessage('कृपया पहले src/config.ts में अपना लाइव Google Apps Script URL दर्ज करें।');
+      return;
+    }
+
+    setSyncStatus('syncing');
+    setSyncMessage('सभी 4 शीट्स (PS BOYS, PS GIRLS, UPS BOYS, UPS GIRLS) में पूर्व दर्ज रिकॉर्ड्स सिंक किए जा रहे हैं...');
+
+    try {
+      const result = await triggerSyncCategories();
+      if (result.success) {
+        setSyncStatus('success');
+        setSyncMessage(result.message || 'सभी 4 श्रेणी शीट्स में डेटा सफलतापूर्वक सिंक हो गया!');
+      } else {
+        setSyncStatus('error');
+        setSyncMessage(result.message || 'सिंक करने में त्रुटि आई।');
+      }
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncMessage('सिंक अनुरोध विफल रहा: ' + (err.message || 'अज्ञात त्रुटि'));
     }
   };
 
@@ -159,6 +189,85 @@ export const GasSetupModal: React.FC<GasSetupModalProps> = ({ isOpen, onClose })
                 {testStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />}
                 {testStatus === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
                 <span>{testMessage}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 4 Dedicated Category Sheets Auto-Copy Highlight */}
+          <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl space-y-3">
+            <div className="flex items-start space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-amber-950 text-sm flex items-center gap-1.5">
+                  <span>4 समर्पित शीट्स में स्वतः प्रतिलिपि (4 Category Sheets Auto-Routing):</span>
+                </h4>
+                <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed">
+                  फॉर्म सबमिट होते ही मुख्य शीट के साथ-साथ रिकॉर्ड स्वतः संबंधित शीट टैब में कॉपी/अपडेट हो जाता है:
+                </p>
+              </div>
+            </div>
+
+            {/* Grid of the 4 sheets */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div className="p-2.5 bg-white/90 rounded-xl border border-sky-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="font-mono font-black text-sky-800 text-xs">PS BOYS</div>
+                  <div className="text-[10px] text-slate-600">प्राथमिक स्तर + बालक</div>
+                </div>
+                <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-bold">Auto-Copy</span>
+              </div>
+
+              <div className="p-2.5 bg-white/90 rounded-xl border border-pink-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="font-mono font-black text-pink-800 text-xs">PS GIRLS</div>
+                  <div className="text-[10px] text-slate-600">प्राथमिक स्तर + बालिका</div>
+                </div>
+                <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-0.5 rounded font-bold">Auto-Copy</span>
+              </div>
+
+              <div className="p-2.5 bg-white/90 rounded-xl border border-indigo-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="font-mono font-black text-indigo-800 text-xs">UPS BOYS</div>
+                  <div className="text-[10px] text-slate-600">उच्च प्राथमिक स्तर + बालक</div>
+                </div>
+                <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">Auto-Copy</span>
+              </div>
+
+              <div className="p-2.5 bg-white/90 rounded-xl border border-purple-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="font-mono font-black text-purple-800 text-xs">UPS GIRLS</div>
+                  <div className="text-[10px] text-slate-600">उच्च प्राथमिक स्तर + बालिका</div>
+                </div>
+                <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">Auto-Copy</span>
+              </div>
+            </div>
+
+            {/* Resync button for existing records */}
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-amber-200/80">
+              <span className="text-[11px] text-amber-900/90 font-medium">
+                क्या मुख्य शीट में पहले से डेटा मौजूद है?
+              </span>
+              <button
+                onClick={handleSyncCategorySheets}
+                disabled={syncStatus === 'syncing'}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs transition shadow-2xs self-start sm:self-auto shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                <span>सभी 4 शीट्स में सिंक करें (Resync All)</span>
+              </button>
+            </div>
+
+            {syncStatus !== 'idle' && (
+              <div className={`p-2.5 rounded-xl flex items-start space-x-2 text-xs ${
+                syncStatus === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                syncStatus === 'error' ? 'bg-rose-50 text-rose-800 border border-rose-200' :
+                'bg-blue-50 text-blue-800 border border-blue-200'
+              }`}>
+                {syncStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />}
+                {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+                <span>{syncMessage}</span>
               </div>
             )}
           </div>

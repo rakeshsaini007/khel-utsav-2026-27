@@ -95,9 +95,22 @@ export const AlertModal: React.FC<AlertModalProps> = ({
             </div>
             {record.rowNumber && (
               <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                <span className="text-slate-500">शीट पंक्ति संख्या (Sheet Row):</span>
+                <span className="text-slate-500">मुख्य शीट पंक्ति संख्या:</span>
                 <span className="font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded">
                   Row #{record.rowNumber}
+                </span>
+              </div>
+            )}
+            {record.categorySheet && (
+              <div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
+                <span className="text-slate-500">ऑटो-कॉपी श्रेणी शीट:</span>
+                <span className={`font-mono font-bold px-2.5 py-0.5 rounded-md text-[11px] shadow-2xs ${
+                  record.categorySheet === 'PS BOYS' ? 'bg-sky-100 text-sky-900 border border-sky-300' :
+                  record.categorySheet === 'PS GIRLS' ? 'bg-pink-100 text-pink-900 border border-pink-300' :
+                  record.categorySheet === 'UPS BOYS' ? 'bg-indigo-100 text-indigo-900 border border-indigo-300' :
+                  'bg-purple-100 text-purple-900 border border-purple-300'
+                }`}>
+                  📂 {record.categorySheet} (स्वतः प्रतिलिपि)
                 </span>
               </div>
             )}

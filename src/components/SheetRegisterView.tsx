@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { StudentRegistration } from '../types';
 import { APP_CONFIG, GOOGLE_APPS_SCRIPT_URL } from '../config';
-import { isPlaceholderUrl } from '../services/apiService';
+import { isPlaceholderUrl, getCategorySheetName } from '../services/apiService';
 
 interface SheetRegisterViewProps {
   records: StudentRegistration[];
@@ -42,6 +42,7 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   // Default to current unique UDISE code if available so only that school's data is shown!
   const [filterUdise, setFilterUdise] = useState<string>(currentUdise || 'ALL');
+  const [filterCategory, setFilterCategory] = useState<'ALL' | 'PS BOYS' | 'PS GIRLS' | 'UPS BOYS' | 'UPS GIRLS'>('ALL');
   const [filterGame, setFilterGame] = useState('ALL');
   const [filterGender, setFilterGender] = useState('ALL');
 
@@ -74,9 +75,36 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
   // Unique UDISE code list
   const uniqueUdiseList = Array.from(udiseStats.keys());
 
+  // Category stats
+  const categoryCounts = React.useMemo(() => {
+    let psBoys = 0;
+    let psGirls = 0;
+    let upsBoys = 0;
+    let upsGirls = 0;
+
+    records.forEach(r => {
+      const cat = r.categorySheet || getCategorySheetName(r.level, r.gender);
+      if (cat === 'PS BOYS') psBoys++;
+      else if (cat === 'PS GIRLS') psGirls++;
+      else if (cat === 'UPS BOYS') upsBoys++;
+      else if (cat === 'UPS GIRLS') upsGirls++;
+    });
+
+    return {
+      all: records.length,
+      psBoys,
+      psGirls,
+      upsBoys,
+      upsGirls
+    };
+  }, [records]);
+
   // Filter records
   const filtered = records.filter((r) => {
     const matchesUdise = filterUdise === 'ALL' || r.udiseCode === filterUdise;
+
+    const catName = r.categorySheet || getCategorySheetName(r.level, r.gender);
+    const matchesCategory = filterCategory === 'ALL' || catName === filterCategory;
 
     const matchesSearch =
       r.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,7 +118,7 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
     const matchesGame = filterGame === 'ALL' || r.gameName === filterGame;
     const matchesGender = filterGender === 'ALL' || r.gender === filterGender;
 
-    return matchesUdise && matchesSearch && matchesGame && matchesGender;
+    return matchesUdise && matchesCategory && matchesSearch && matchesGame && matchesGender;
   });
 
   // Unique games in records for filter
@@ -108,6 +136,7 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
       "खेल का नाम",
       "वर्ग / स्तर",
       "बालक / बालिका",
+      "श्रेणी शीट (Category Sheet)",
       "PEN",
       "छात्र/छात्रा का यूनिक आईडी नंबर",
       "विजेता का नाम",
@@ -135,6 +164,7 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
       `"${r.gameName || ''}"`,
       `"${r.level || ''}"`,
       `"${r.gender || ''}"`,
+      `"${r.categorySheet || getCategorySheetName(r.level, r.gender)}"`,
       `"${r.penNumber || ''}"`,
       `"${r.uniqueIdNumber || ''}"`,
       `"${r.studentName || ''}"`,
@@ -158,10 +188,14 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    let baseName = 'विजेता_प्रतिभागी_सूची';
+    if (filterCategory !== 'ALL') {
+      baseName = `${filterCategory.replace(/\s+/g, '_')}_${baseName}`;
+    }
     const csvFileName =
       filterUdise !== 'ALL'
-        ? `विजेता_प्रतिभागी_सूची_UDISE_${filterUdise}_${new Date().toISOString().slice(0, 10)}.csv`
-        : `विजेता_प्रतिभागी_सूची_स्वार_${new Date().toISOString().slice(0, 10)}.csv`;
+        ? `${baseName}_UDISE_${filterUdise}_${new Date().toISOString().slice(0, 10)}.csv`
+        : `${baseName}_स्वार_${new Date().toISOString().slice(0, 10)}.csv`;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -183,6 +217,93 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
   return (
     <div className="space-y-4">
       
+      {/* 4 Dedicated Category Sheets Quick Filter Tabs */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-200 p-2 flex items-center gap-1.5 overflow-x-auto">
+        <span className="text-xs font-bold text-slate-500 px-3 whitespace-nowrap hidden sm:inline">
+          शीट्स (Sheets):
+        </span>
+
+        <button
+          onClick={() => setFilterCategory('ALL')}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            filterCategory === 'ALL'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          <span>🌐 सभी रिकॉर्ड्स</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            filterCategory === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {categoryCounts.all}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setFilterCategory('PS BOYS')}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            filterCategory === 'PS BOYS'
+              ? 'bg-sky-600 text-white shadow-xs'
+              : 'bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200'
+          }`}
+        >
+          <span>👦 PS BOYS</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            filterCategory === 'PS BOYS' ? 'bg-white/25 text-white' : 'bg-sky-200 text-sky-900'
+          }`}>
+            {categoryCounts.psBoys}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setFilterCategory('PS GIRLS')}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            filterCategory === 'PS GIRLS'
+              ? 'bg-pink-600 text-white shadow-xs'
+              : 'bg-pink-50 hover:bg-pink-100 text-pink-800 border border-pink-200'
+          }`}
+        >
+          <span>👧 PS GIRLS</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            filterCategory === 'PS GIRLS' ? 'bg-white/25 text-white' : 'bg-pink-200 text-pink-900'
+          }`}>
+            {categoryCounts.psGirls}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setFilterCategory('UPS BOYS')}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            filterCategory === 'UPS BOYS'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200'
+          }`}
+        >
+          <span>👦 UPS BOYS</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            filterCategory === 'UPS BOYS' ? 'bg-white/25 text-white' : 'bg-indigo-200 text-indigo-900'
+          }`}>
+            {categoryCounts.upsBoys}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setFilterCategory('UPS GIRLS')}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            filterCategory === 'UPS GIRLS'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200'
+          }`}
+        >
+          <span>👧 UPS GIRLS</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            filterCategory === 'UPS GIRLS' ? 'bg-white/25 text-white' : 'bg-purple-200 text-purple-900'
+          }`}>
+            {categoryCounts.upsGirls}
+          </span>
+        </button>
+      </div>
+
       {/* Action Bar & Controls */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex items-center space-x-2 w-full md:w-auto">
@@ -367,6 +488,7 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
                 <th className="py-2.5 px-2 text-center border-r border-slate-300 w-10">क्र० सं०</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 font-bold text-blue-900">खेल का नाम</th>
                 <th className="py-2.5 px-2.5 border-r border-slate-300 text-center">वर्ग/लिंग</th>
+                <th className="py-2.5 px-2.5 border-r border-slate-300 text-center font-bold text-amber-950 bg-amber-50/50">समर्पित शीट</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 font-mono">PEN</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 font-mono">यूनिक आईडी नंबर</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 font-bold text-slate-900">विजेता का नाम</th>
@@ -392,10 +514,11 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
             <tbody className="divide-y divide-slate-200 bg-white">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={23} className="text-center py-12 px-4 text-slate-400">
+                  <td colSpan={24} className="text-center py-12 px-4 text-slate-400">
                     <Trophy className="w-12 h-12 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-bold text-slate-700">
-                      {filterUdise !== 'ALL'
+                      {filterCategory !== 'ALL' ? `शीट "${filterCategory}" में कोई प्रविष्टि नहीं मिली` :
+                       filterUdise !== 'ALL'
                         ? `यू-डायस कोड ${filterUdise} (${activeSchoolName || 'विद्यालय'}) के लिए कोई प्रविष्टि नहीं मिली`
                         : 'कोई प्रविष्टि नहीं मिली'}
                     </p>
@@ -405,6 +528,14 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
                         : 'पंजीकरण फॉर्म भरकर छात्रों को विभिन्न खेलों में दर्ज करें'}
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2">
+                      {filterCategory !== 'ALL' && (
+                        <button
+                          onClick={() => setFilterCategory('ALL')}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition"
+                        >
+                          सभी शीट्स का डेटा देखें
+                        </button>
+                      )}
                       {filterUdise !== 'ALL' && (
                         <button
                           onClick={() => setFilterUdise('ALL')}
@@ -425,7 +556,9 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filtered.map((item, index) => (
+                filtered.map((item, index) => {
+                  const cat = item.categorySheet || getCategorySheetName(item.level, item.gender);
+                  return (
                   <tr 
                     key={item.id || index}
                     className="hover:bg-blue-50/60 transition group"
@@ -442,6 +575,20 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
                       }`}>
                         {item.gender}
                       </span>
+                    </td>
+                    <td className="py-2 px-2.5 border-r border-slate-200 text-center bg-slate-50/30">
+                      {cat ? (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold inline-block shadow-2xs ${
+                          cat === 'PS BOYS' ? 'bg-sky-100 text-sky-900 border border-sky-300' :
+                          cat === 'PS GIRLS' ? 'bg-pink-100 text-pink-900 border border-pink-300' :
+                          cat === 'UPS BOYS' ? 'bg-indigo-100 text-indigo-900 border border-indigo-300' :
+                          'bg-purple-100 text-purple-900 border border-purple-300'
+                        }`}>
+                          {cat}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="py-2 px-3 border-r border-slate-200 font-mono text-slate-700 font-semibold">
                       {item.penNumber || '—'}
@@ -526,8 +673,9 @@ export const SheetRegisterView: React.FC<SheetRegisterViewProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>
