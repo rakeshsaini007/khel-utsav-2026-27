@@ -20,7 +20,7 @@ export const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycb
 
 // Administrative & Block Information
 export const APP_CONFIG = {
-  tournamentTitle: "न्याय पंचायत स्तरीय क्रीडा एवं शैक्षिक प्रतियोगिता 2026 - 27",
+  tournamentTitle: "ब्लॉक स्तरीय क्रीडा एवं शैक्षिक प्रतियोगिता 2026 - 27",
   subTitle: "खेलवार प्रथम स्थान प्राप्त करने वाले विजेता प्रतिभागियों की सूची",
   blockName: "विकास खण्ड - स्वार (रामपुर)",
   officerName: "पी एल निरंकारी (खण्ड शिक्षा अधिकारी)",

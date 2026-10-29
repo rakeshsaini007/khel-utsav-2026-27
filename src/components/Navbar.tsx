@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, FileSpreadsheet } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { APP_CONFIG } from '../config';
 
 interface NavbarProps {
@@ -61,39 +61,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 पंजीकरण फॉर्म
-              </button>
-              <button
-                onClick={() => setActiveTab('sheet')}
-                title={
-                  currentUdise
-                    ? `शीट रजिस्टर (केवल यू-डायस ${currentUdise} का डेटा)`
-                    : 'शीट रजिस्टर (सभी डेटा)'
-                }
-                className={`flex items-center space-x-1.5 px-3 py-1 rounded-md text-xs font-semibold transition ${
-                  activeTab === 'sheet'
-                    ? 'bg-amber-400 text-blue-950 shadow-sm'
-                    : 'text-blue-200 hover:text-white'
-                }`}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>शीट रजिस्टर</span>
-                {currentUdise ? (
-                  <span
-                    className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs ${
-                      activeTab === 'sheet'
-                        ? 'bg-blue-950 text-amber-300'
-                        : 'bg-amber-400 text-blue-950'
-                    }`}
-                    title={`यू-डायस ${currentUdise}: ${currentUdiseEntriesCount} प्रविष्टियां`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>{currentUdiseEntriesCount}</span>
-                  </span>
-                ) : totalEntries > 0 ? (
-                  <span className="ml-1 bg-blue-900 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                    {totalEntries}
-                  </span>
-                ) : null}
               </button>
             </div>
 

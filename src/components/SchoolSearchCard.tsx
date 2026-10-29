@@ -13,6 +13,8 @@ interface SchoolSearchCardProps {
   onRefreshSchools?: () => void;
   onSchoolSelect: (school: SchoolInfo) => void;
   onManualChange: (field: string, val: string) => void;
+  onClearSchool?: () => void;
+  isFormOpened?: boolean;
 }
 
 export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
@@ -26,14 +28,16 @@ export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
   onRefreshSchools,
   onSchoolSelect,
   onManualChange,
+  onClearSchool,
+  isFormOpened = false,
 }) => {
-  const [query, setQuery] = useState(udiseCode);
+  const [query, setQuery] = useState(udiseCode || '');
   const [suggestions, setSuggestions] = useState<SchoolInfo[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isCustomMode, setIsCustomMode] = useState(false);
 
   useEffect(() => {
-    setQuery(udiseCode);
+    setQuery(udiseCode || '');
   }, [udiseCode]);
 
   const activeSchools = schools && schools.length > 0 ? schools : [];
@@ -42,6 +46,20 @@ export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
     const clean = val.trim();
     setQuery(clean);
     onManualChange('udiseCode', clean);
+
+    if (clean.length === 0) {
+      if (onClearSchool) {
+        onClearSchool();
+      } else {
+        onManualChange('udiseCode', '');
+        onManualChange('schoolName', '');
+        onManualChange('nyayPanchayat', '');
+        onManualChange('schoolType', '');
+      }
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
 
     if (clean.length >= 2) {
       const matches = activeSchools.filter(s =>
@@ -222,6 +240,55 @@ export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Dynamic guidance and status bar */}
+      {!isFormOpened ? (
+        <div className="mt-4 p-3.5 bg-blue-50/90 border border-blue-200/90 rounded-xl flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center space-x-2 text-blue-900 text-xs sm:text-sm font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse shrink-0"></span>
+            <span>
+              👉 कृपया विद्यालय का <b>11-अंकीय यू-डायस कोड</b> दर्ज करें या सूची से विद्यालय चुनें। UDISE दर्ज होते ही पूरा पंजीकरण फॉर्म खुल जाएगा।
+            </span>
+          </div>
+          {query.trim().length >= 10 && (
+            <button
+              type="button"
+              onClick={() => {
+                const match = activeSchools.find(s => s.udiseCode === query.trim());
+                if (match) {
+                  onSchoolSelect(match);
+                } else {
+                  onManualChange('udiseCode', query.trim());
+                }
+              }}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
+            >
+              फॉर्म खोलें (Open Form) →
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center space-x-2 text-emerald-900 text-xs sm:text-sm font-semibold">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0"></span>
+            <span>
+              ✓ यू-डायस कोड {udiseCode} सत्यापित ({schoolName || 'विद्यालय'}) — खेल व छात्र विवरण फॉर्म खुला हुआ है
+            </span>
+          </div>
+          {onClearSchool && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                onClearSchool();
+              }}
+              className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-300 rounded-lg hover:bg-rose-50 transition shadow-xs"
+            >
+              ✕ विद्यालय बदलें / नया UDISE भरें
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -129,13 +129,12 @@ export default function App() {
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
   const [isLiveMaster, setIsLiveMaster] = useState(false);
 
-  // Form State
-  const defaultSchool = schoolsList[0] || INITIAL_SCHOOLS[0];
+  // Form State - UDISE is not prefilled initially
   const [formData, setFormData] = useState<StudentRegistration>({
-    udiseCode: defaultSchool.udiseCode,
-    schoolName: defaultSchool.schoolName,
-    nyayPanchayat: defaultSchool.nyayPanchayat,
-    schoolType: defaultSchool.schoolType,
+    udiseCode: '',
+    schoolName: '',
+    nyayPanchayat: '',
+    schoolType: '',
     level: 'प्राथमिक स्तर',
     gameName: PRIMARY_GAMES[0],
     gender: 'बालक',
@@ -156,6 +155,12 @@ export default function App() {
     headmasterName: '',
     headmasterMobile: ''
   });
+
+  // Determines whether the full form (game selector & student fields) should be opened
+  const isUdiseFilled = Boolean(
+    (formData.udiseCode && formData.udiseCode.trim().length >= 11) ||
+    (formData.udiseCode && formData.udiseCode.trim().length >= 5 && formData.schoolName && formData.schoolName.trim().length > 0)
+  );
 
   const [existingRecord, setExistingRecord] = useState<StudentRegistration | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -387,7 +392,7 @@ export default function App() {
       udiseCode: '',
       schoolName: '',
       nyayPanchayat: '',
-      schoolType: 'PS',
+      schoolType: '',
       level: 'प्राथमिक स्तर',
       gameName: PRIMARY_GAMES[0],
       gender: 'बालक',
@@ -529,31 +534,38 @@ export default function App() {
               onRefreshSchools={loadSchools}
               onSchoolSelect={handleSchoolSelect}
               onManualChange={handleManualSchoolChange}
+              onClearSchool={handleClearAll}
+              isFormOpened={isUdiseFilled}
             />
 
-            {/* Step 2: Game & Gender Selector with Existing Record Detector */}
-            <GameAndGenderSelector
-              level={formData.level}
-              gameName={formData.gameName}
-              gender={formData.gender}
-              schoolType={formData.schoolType}
-              existingRecord={existingRecord}
-              isChecking={isChecking}
-              onLevelChange={handleLevelChange}
-              onGameChange={handleGameChange}
-              onGenderChange={handleGenderChange}
-              onResetToNew={handleResetToNew}
-            />
+            {/* Step 2 & 3: Opened ONLY after filling the UDISE code */}
+            {isUdiseFilled && (
+              <>
+                {/* Step 2: Game & Gender Selector with Existing Record Detector */}
+                <GameAndGenderSelector
+                  level={formData.level}
+                  gameName={formData.gameName}
+                  gender={formData.gender}
+                  schoolType={formData.schoolType}
+                  existingRecord={existingRecord}
+                  isChecking={isChecking}
+                  onLevelChange={handleLevelChange}
+                  onGameChange={handleGameChange}
+                  onGenderChange={handleGenderChange}
+                  onResetToNew={handleResetToNew}
+                />
 
-            {/* Step 3: Complete Student Details Card (with Submit / Update dynamic button) */}
-            <StudentFormCard
-              formData={formData}
-              isExisting={Boolean(existingRecord || formData.rowNumber)}
-              isSaving={isSaving}
-              onInputChange={handleInputChange}
-              onSubmit={handleSubmit}
-              onClear={handleResetToNew}
-            />
+                {/* Step 3: Complete Student Details Card (with Submit / Update dynamic button) */}
+                <StudentFormCard
+                  formData={formData}
+                  isExisting={Boolean(existingRecord || formData.rowNumber)}
+                  isSaving={isSaving}
+                  onInputChange={handleInputChange}
+                  onSubmit={handleSubmit}
+                  onClear={handleResetToNew}
+                />
+              </>
+            )}
 
           </div>
         )}
