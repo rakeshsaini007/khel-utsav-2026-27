@@ -27,21 +27,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
           
           {/* Title & Emblem */}
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center shadow-inner shrink-0 text-amber-300">
+          <div className="flex items-start sm:items-center space-x-3">
+            <div className="w-12 h-12 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center shadow-inner shrink-0 text-amber-300 mt-0.5 sm:mt-0">
               <Trophy className="w-7 h-7" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 mb-1">
                 <span className="bg-amber-400 text-blue-950 text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">
                   स्वार • रामपुर
                 </span>
                 <span className="text-xs text-blue-200 font-medium">सत्र 2026 - 27</span>
               </div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight line-clamp-1">
+              <h1 className="text-sm sm:text-base md:text-lg font-bold text-white tracking-tight leading-snug break-words">
                 {APP_CONFIG.tournamentTitle}
               </h1>
-              <p className="text-xs text-blue-200/90 hidden sm:block">
+              <p className="text-[11px] sm:text-xs text-blue-200/90 block mt-1 leading-relaxed break-words">
                 {APP_CONFIG.subTitle} • {APP_CONFIG.officerName}
               </p>
             </div>
