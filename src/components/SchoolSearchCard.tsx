@@ -244,7 +244,7 @@ export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
           <div className="flex items-center space-x-2 text-blue-900 text-xs sm:text-sm font-medium">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse shrink-0"></span>
             <span>
-              👉 कृपया विद्यालय का <b>11-अंकीय यू-डायस कोड</b> दर्ज करें या सूची से विद्यालय चुनें। UDISE दर्ज होते ही पूरा पंजीकरण फॉर्म खुल जाएगा।
+              👉 कृपया विद्यालय का <b>11-अंकीय यू-डायस कोड</b> दर्ज करें। UDISE दर्ज होते ही पूरा पंजीकरण फॉर्म खुल जाएगा।
             </span>
           </div>
           {query.trim().length >= 10 && (
