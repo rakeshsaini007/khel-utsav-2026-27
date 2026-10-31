@@ -643,17 +643,6 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-6 text-xs text-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-1">
-          <p className="font-semibold text-slate-200">
-            {APP_CONFIG.tournamentTitle} • {APP_CONFIG.blockName}
-          </p>
-          <p className="text-slate-500">
-            तकनीकी सहायता: बेसिक शिक्षा विभाग (विकास खण्ड स्वार, रामपुर) • गूगल ऐप्स स्क्रिप्ट एवं गूगल शीट्स ऑटो-सिंक प्रणाली
-          </p>
-        </div>
-      </footer>
 
       {/* Alert Modal for Save / Update Confirmation */}
       <AlertModal

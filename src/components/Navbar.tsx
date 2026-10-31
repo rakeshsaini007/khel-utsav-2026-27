@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <h1 className="text-sm sm:text-base md:text-lg font-bold text-white tracking-tight leading-snug break-words">
                 {APP_CONFIG.tournamentTitle}
               </h1>
-              <p className="text-[11px] sm:text-xs text-blue-200/90 block mt-1 leading-relaxed break-words">
+              <p className="text-[11px] sm:text-xs text-red-400 font-semibold block mt-1 leading-relaxed break-words">
                 {APP_CONFIG.subTitle} • {APP_CONFIG.officerName}
               </p>
             </div>

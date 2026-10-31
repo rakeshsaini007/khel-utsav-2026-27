@@ -99,9 +99,6 @@ export const SchoolSearchCard: React.FC<SchoolSearchCardProps> = ({
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <span>विद्यालय एवं यू-डायस चयन (School & UDISE Search)</span>
             </h2>
-            <p className="text-xs text-slate-500">
-              गूगल शीट <b>"School_Master"</b> से UDISE कोड दर्ज करते ही विद्यालय का विवरण स्वतः भर जाएगा
-            </p>
           </div>
         </div>
 
