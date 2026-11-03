@@ -1,6 +1,7 @@
 import { GOOGLE_APPS_SCRIPT_URL } from '../config';
 import { StudentRegistration } from '../types';
 import { SchoolInfo, INITIAL_SCHOOLS } from '../data/schools';
+import { normalizeDateToYYYYMMDD } from '../utils/studentMatcher';
 
 const STORAGE_KEY = 'khel_utsav_registrations_v1';
 const SCHOOLS_STORAGE_KEY = 'khel_utsav_schools_master_v1';
@@ -62,7 +63,15 @@ export async function fetchSchoolsFromMasterSheet(): Promise<{ schools: SchoolIn
 export function getLocalRecords(): StudentRegistration[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((r: any) => ({
+        ...r,
+        dob: normalizeDateToYYYYMMDD(r.dob)
+      }));
+    }
+    return [];
   } catch {
     return [];
   }
@@ -122,7 +131,11 @@ export async function checkExistingRecord(params: {
       if (res.ok) {
         const json = await res.json();
         if (json.status === 'found' && json.data) {
-          return { found: true, record: json.data, source: 'gas' };
+          const rec = {
+            ...json.data,
+            dob: normalizeDateToYYYYMMDD(json.data.dob)
+          };
+          return { found: true, record: rec, source: 'gas' };
         }
       }
     } catch (err) {
@@ -150,7 +163,14 @@ export async function checkExistingRecord(params: {
   });
 
   if (matched) {
-    return { found: true, record: matched, source: 'local' };
+    return { 
+      found: true, 
+      record: {
+        ...matched,
+        dob: normalizeDateToYYYYMMDD(matched.dob)
+      }, 
+      source: 'local' 
+    };
   }
 
   return { found: false, record: null, source: 'local' };
@@ -174,9 +194,13 @@ export async function fetchAllRecords(udiseFilter?: string): Promise<{ records: 
       if (res.ok) {
         const json = await res.json();
         if (json.status === 'success' && Array.isArray(json.data)) {
+          const cleaned = json.data.map((r: any) => ({
+            ...r,
+            dob: normalizeDateToYYYYMMDD(r.dob)
+          }));
           // Sync to local cache too
-          saveLocalRecords(json.data);
-          return { records: json.data, isLive: true };
+          saveLocalRecords(cleaned);
+          return { records: cleaned, isLive: true };
         }
       }
     } catch (err) {

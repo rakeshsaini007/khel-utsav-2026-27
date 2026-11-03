@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import { StudentRegistration } from '../types';
 import { convertToHindi, filterStrictHindiOnly } from '../utils/hindiHelper';
+import { 
+  isSameStudent, 
+  findExistingStudentMatch, 
+  normalizeDateToYYYYMMDD, 
+  formatDisplayDate 
+} from '../utils/studentMatcher';
 
 interface StudentFormCardProps {
   formData: StudentRegistration;
@@ -37,7 +43,67 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
   onClear,
   existingRecords = [],
 }) => {
+  // Check if current form details match an already existing student based on the 4 mandatory keys:
+  // "विजेता का नाम", "पिता का नाम", "कक्षा" and "यू-डायस कोड"
+  const matchedExistingStudent = React.useMemo(() => {
+    return findExistingStudentMatch(formData, existingRecords);
+  }, [
+    formData.studentName,
+    formData.fatherName,
+    formData.studentClass,
+    formData.udiseCode,
+    formData.id,
+    formData.rowNumber,
+    existingRecords
+  ]);
+
+  // Keep track of the last auto-populated student signature to prevent infinite update loops
+  const lastAutoFilledSignatureRef = React.useRef<string>('');
+
+  // Auto-populate the 9 required fields when "विजेता का नाम", "पिता का नाम", "कक्षा" and "यू-डायस कोड" match:
+  // "PEN", "छात्र/छात्रा का यूनिक आईडी नंबर", "प्रवेशांक", "जन्मतिथि", "आधार नंबर",
+  // "जन्म प्रमाण पत्र क्रमांक", "जन्म प्रमाण पत्र जारीकर्ता का पद नाम", "पहचान चिन्ह" and "विजेता बच्चे के दांतों की संख्या"
+  React.useEffect(() => {
+    if (matchedExistingStudent) {
+      const sig = `${matchedExistingStudent.id || matchedExistingStudent.rowNumber || ''}_${matchedExistingStudent.studentName}_${matchedExistingStudent.fatherName}_${matchedExistingStudent.studentClass}_${matchedExistingStudent.udiseCode}`;
+      if (lastAutoFilledSignatureRef.current !== sig) {
+        lastAutoFilledSignatureRef.current = sig;
+
+        if (matchedExistingStudent.penNumber) onInputChange('penNumber', matchedExistingStudent.penNumber);
+        if (matchedExistingStudent.uniqueIdNumber) onInputChange('uniqueIdNumber', matchedExistingStudent.uniqueIdNumber);
+        if (matchedExistingStudent.admissionNumber) onInputChange('admissionNumber', matchedExistingStudent.admissionNumber);
+        if (matchedExistingStudent.dob) {
+          const normDob = normalizeDateToYYYYMMDD(matchedExistingStudent.dob);
+          onInputChange('dob', normDob);
+        }
+        if (matchedExistingStudent.aadhaarNumber) onInputChange('aadhaarNumber', matchedExistingStudent.aadhaarNumber);
+        if (matchedExistingStudent.birthCertNumber) onInputChange('birthCertNumber', matchedExistingStudent.birthCertNumber);
+        if (matchedExistingStudent.birthCertAuthority) onInputChange('birthCertAuthority', matchedExistingStudent.birthCertAuthority);
+        if (matchedExistingStudent.identificationMark) onInputChange('identificationMark', matchedExistingStudent.identificationMark);
+        if (matchedExistingStudent.teethCount) onInputChange('teethCount', matchedExistingStudent.teethCount);
+
+        // Also auto-populate parent / headmaster contacts if available
+        if (matchedExistingStudent.parentNameHindi) onInputChange('parentNameHindi', matchedExistingStudent.parentNameHindi);
+        if (matchedExistingStudent.parentMobile) onInputChange('parentMobile', matchedExistingStudent.parentMobile);
+        if (matchedExistingStudent.headmasterName) onInputChange('headmasterName', matchedExistingStudent.headmasterName);
+        if (matchedExistingStudent.headmasterMobile) onInputChange('headmasterMobile', matchedExistingStudent.headmasterMobile);
+      }
+    }
+  }, [matchedExistingStudent, onInputChange]);
+
+  // Dedicated safety hook: Ensure DOB (जन्मतिथि) is always auto-populated whenever an existing student is matched
+  React.useEffect(() => {
+    if (matchedExistingStudent && matchedExistingStudent.dob) {
+      const normDob = normalizeDateToYYYYMMDD(matchedExistingStudent.dob);
+      if (normDob && (!formData.dob || normalizeDateToYYYYMMDD(formData.dob) !== normDob)) {
+        onInputChange('dob', normDob);
+      }
+    }
+  }, [matchedExistingStudent, formData.dob, onInputChange]);
+
   // Check for duplicate unique values (PEN, Unique ID, Aadhaar, Birth Certificate)
+  // CRITICAL: If the record belongs to the SAME student ("विजेता का नाम", "पिता का नाम", "कक्षा", "यू-डायस कोड"),
+  // then submission of data is ACCEPTABLE and NOT considered a collision!
   const duplicates = React.useMemo(() => {
     if (!existingRecords || existingRecords.length === 0) {
       return { pen: null, uniqueId: null, aadhaar: null, birthCert: null, hasDuplicates: false };
@@ -53,28 +119,31 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
       return true;
     });
 
-    // 1. Check PEN Number (must be unique)
+    // Check whether an otherRecord belongs to a DIFFERENT student
+    const isOtherStudent = (r: StudentRegistration) => !isSameStudent(r, formData);
+
+    // 1. Check PEN Number (must be unique across DIFFERENT students)
     const cleanPen = (formData.penNumber || '').trim();
     const penDup = cleanPen 
-      ? otherRecords.find(r => (r.penNumber || '').trim() === cleanPen)
+      ? otherRecords.find(r => isOtherStudent(r) && (r.penNumber || '').trim() === cleanPen)
       : null;
 
-    // 2. Check Student Unique ID (must be unique)
+    // 2. Check Student Unique ID (must be unique across DIFFERENT students)
     const cleanUnique = (formData.uniqueIdNumber || '').trim();
     const uniqueDup = cleanUnique 
-      ? otherRecords.find(r => (r.uniqueIdNumber || '').trim() === cleanUnique)
+      ? otherRecords.find(r => isOtherStudent(r) && (r.uniqueIdNumber || '').trim() === cleanUnique)
       : null;
 
-    // 3. Check Aadhaar Number (must be unique, compare raw 12 digits)
+    // 3. Check Aadhaar Number (must be unique across DIFFERENT students, compare raw 12 digits)
     const cleanAadhaar = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
     const aadhaarDup = cleanAadhaar.length === 12
-      ? otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === cleanAadhaar)
+      ? otherRecords.find(r => isOtherStudent(r) && (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === cleanAadhaar)
       : null;
 
-    // 4. Check Birth Certificate Number (must be unique)
+    // 4. Check Birth Certificate Number (must be unique across DIFFERENT students)
     const cleanBirth = (formData.birthCertNumber || '').trim().toLowerCase();
     const birthDup = cleanBirth
-      ? otherRecords.find(r => (r.birthCertNumber || '').trim().toLowerCase() === cleanBirth)
+      ? otherRecords.find(r => isOtherStudent(r) && (r.birthCertNumber || '').trim().toLowerCase() === cleanBirth)
       : null;
 
     return {
@@ -84,7 +153,54 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
       birthCert: birthDup || null,
       hasDuplicates: Boolean(penDup || uniqueDup || aadhaarDup || birthDup)
     };
-  }, [existingRecords, formData.id, formData.rowNumber, formData.penNumber, formData.uniqueIdNumber, formData.aadhaarNumber, formData.birthCertNumber]);
+  }, [
+    existingRecords, 
+    formData.id, 
+    formData.rowNumber, 
+    formData.penNumber, 
+    formData.uniqueIdNumber, 
+    formData.aadhaarNumber, 
+    formData.birthCertNumber,
+    formData.studentName,
+    formData.fatherName,
+    formData.studentClass,
+    formData.udiseCode
+  ]);
+
+  // Distinct list of registered students for this school to give one-click fill
+  const schoolStudentsList = React.useMemo(() => {
+    if (!formData.udiseCode || !existingRecords) return [];
+    const map = new Map<string, StudentRegistration>();
+    existingRecords
+      .filter((r) => r.udiseCode?.trim() === formData.udiseCode?.trim())
+      .forEach((r) => {
+        const key = `${r.studentName}_${r.fatherName}_${r.studentClass}`.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, r);
+        }
+      });
+    return Array.from(map.values());
+  }, [formData.udiseCode, existingRecords]);
+
+  // One-click apply student details for a new game
+  const handleApplyStudentDetails = (st: StudentRegistration) => {
+    onInputChange('studentName', st.studentName);
+    onInputChange('fatherName', st.fatherName);
+    onInputChange('studentClass', st.studentClass);
+    if (st.penNumber) onInputChange('penNumber', st.penNumber);
+    if (st.uniqueIdNumber) onInputChange('uniqueIdNumber', st.uniqueIdNumber);
+    if (st.admissionNumber) onInputChange('admissionNumber', st.admissionNumber);
+    if (st.dob) onInputChange('dob', normalizeDateToYYYYMMDD(st.dob));
+    if (st.aadhaarNumber) onInputChange('aadhaarNumber', st.aadhaarNumber);
+    if (st.birthCertNumber) onInputChange('birthCertNumber', st.birthCertNumber);
+    if (st.birthCertAuthority) onInputChange('birthCertAuthority', st.birthCertAuthority);
+    if (st.identificationMark) onInputChange('identificationMark', st.identificationMark);
+    if (st.teethCount) onInputChange('teethCount', st.teethCount);
+    if (st.parentNameHindi) onInputChange('parentNameHindi', st.parentNameHindi);
+    if (st.parentMobile) onInputChange('parentMobile', st.parentMobile);
+    if (st.headmasterName) onInputChange('headmasterName', st.headmasterName);
+    if (st.headmasterMobile) onInputChange('headmasterMobile', st.headmasterMobile);
+  };
 
   // Form submit handler with strict uniqueness validation rejection
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -187,6 +303,60 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
         </div>
 
         <div className="p-6 space-y-6">
+
+          {/* Matched Existing Student Banner */}
+          {matchedExistingStudent && (
+            <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 rounded-xl text-xs sm:text-sm text-emerald-950 flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
+              <div className="flex items-start sm:items-center space-x-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+                <div>
+                  <div className="font-bold flex items-center gap-2 flex-wrap">
+                    <span>पूर्व पंजीकृत छात्र मिलान (Existing Student Auto-Populated):</span>
+                    <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-mono">
+                      {matchedExistingStudent.studentName}
+                    </span>
+                    <span className="text-xs font-normal text-emerald-800">
+                      (पिता: {matchedExistingStudent.fatherName} • {matchedExistingStudent.studentClass})
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-800 mt-0.5">
+                    "PEN", "यूनिक आईडी", "प्रवेशांक", "जन्मतिथि", "आधार", "जन्म प्रमाण पत्र", "जारीकर्ता पद", "पहचान चिन्ह" व "दांतों की संख्या" स्वतः भर दिए गए हैं और इस छात्र का सबमिशन पूरी तरह <b>स्वीकार्य (Acceptable)</b> है।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-200 text-emerald-950 font-black text-[11px] shrink-0 border border-emerald-300">
+                ✓ मान्य व स्वीकार्य
+              </span>
+            </div>
+          )}
+
+          {/* Quick Click-to-Fill from School's Registered Students */}
+          {schoolStudentsList.length > 0 && !matchedExistingStudent && (
+            <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>इस विद्यालय के पूर्व पंजीकृत छात्र (स्वतः भरने हेतु क्लिक करें):</span>
+                </span>
+                <span className="text-[10px] text-blue-700">
+                  चुनते ही 9 विवरण (PEN, आधार, जन्मतिथि आदि) स्वतः भर जाएंगे
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {schoolStudentsList.map((st) => (
+                  <button
+                    key={st.id || `${st.penNumber}-${st.studentName}`}
+                    type="button"
+                    onClick={() => handleApplyStudentDetails(st)}
+                    className="px-2.5 py-1 bg-white hover:bg-blue-600 hover:text-white border border-blue-300 text-blue-900 rounded-lg text-xs font-semibold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{st.studentName}</span>
+                    <span className="text-[10px] opacity-75 font-normal">({st.studentClass})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* SECTION A: Primary Personal Info */}
           <div>
@@ -409,14 +579,19 @@ export const StudentFormCard: React.FC<StudentFormCardProps> = ({
 
               {/* Date of Birth */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  जन्मतिथि (Date of Birth) <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>जन्मतिथि (Date of Birth) <span className="text-rose-500">*</span></span>
+                  {formData.dob && (
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-200">
+                      ✓ {formatDisplayDate(formData.dob)}
+                    </span>
+                  )}
                 </label>
                 <div className="relative">
                   <input
                     type="date"
                     required
-                    value={formData.dob}
+                    value={normalizeDateToYYYYMMDD(formData.dob)}
                     onChange={(e) => onInputChange('dob', e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />

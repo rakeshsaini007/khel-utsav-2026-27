@@ -26,6 +26,7 @@ import {
 } from './services/apiService';
 import { APP_CONFIG } from './config';
 import { convertToHindi, filterStrictHindiOnly } from './utils/hindiHelper';
+import { isSameStudent } from './utils/studentMatcher';
 
 // Initial sample seed records matching official Swar data to give immediate visual value
 const SEED_RECORDS: StudentRegistration[] = [
@@ -431,7 +432,7 @@ export default function App() {
       return;
     }
 
-    // Strict uniqueness validation: PEN, Unique ID, Aadhaar, Birth Certificate must be unique
+    // Strict uniqueness validation: PEN, Unique ID, Aadhaar, Birth Certificate must be unique across DIFFERENT students
     const currentId = formData.id;
     const currentRow = formData.rowNumber;
     const otherRecords = records.filter(r => {
@@ -440,25 +441,28 @@ export default function App() {
       return true;
     });
 
+    // When "विजेता का नाम", "पिता का नाम", "कक्षा" and "यू-डायस कोड" match, it is the SAME student and submission is acceptable!
+    const isOtherStudent = (r: StudentRegistration) => !isSameStudent(r, formData);
+
     const cleanPen = (formData.penNumber || '').trim();
     if (cleanPen) {
-      const dupPen = otherRecords.find(r => (r.penNumber || '').trim() === cleanPen);
+      const dupPen = otherRecords.find(r => isOtherStudent(r) && (r.penNumber || '').trim() === cleanPen);
       if (dupPen) {
-        alert(`अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से छात्र "${dupPen.studentName}" (${dupPen.schoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`);
+        alert(`अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से अन्य छात्र "${dupPen.studentName}" (${dupPen.schoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`);
         return;
       }
     }
 
     const cleanUnique = (formData.uniqueIdNumber || '').trim();
     if (cleanUnique) {
-      const dupUnique = otherRecords.find(r => (r.uniqueIdNumber || '').trim() === cleanUnique);
+      const dupUnique = otherRecords.find(r => isOtherStudent(r) && (r.uniqueIdNumber || '').trim() === cleanUnique);
       if (dupUnique) {
-        alert(`अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से छात्र "${dupUnique.studentName}" (${dupUnique.schoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`);
+        alert(`अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से अन्य छात्र "${dupUnique.studentName}" (${dupUnique.schoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`);
         return;
       }
     }
 
-    // Strict validation: Aadhaar number is mandatory and must be exactly 12 digits & unique
+    // Strict validation: Aadhaar number is mandatory and must be exactly 12 digits & unique across different students
     const aadhaarDigits = (formData.aadhaarNumber || '').replace(/[^0-9]/g, '');
     if (!aadhaarDigits) {
       alert('आधार नंबर अनिवार्य है! कृपया ठीक 12 अंकों का वैध आधार नंबर दर्ज करें।');
@@ -468,17 +472,17 @@ export default function App() {
       alert(`आधार नंबर ठीक 12 अंकों का होना अनिवार्य है! (वर्तमान में ${aadhaarDigits.length} अंक हैं)`);
       return;
     }
-    const dupAadhaar = otherRecords.find(r => (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === aadhaarDigits);
+    const dupAadhaar = otherRecords.find(r => isOtherStudent(r) && (r.aadhaarNumber || '').replace(/[^0-9]/g, '') === aadhaarDigits);
     if (dupAadhaar) {
-      alert(`अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र "${dupAadhaar.studentName}" (${dupAadhaar.schoolName}) के लिए दर्ज है! कृपया सही व अद्वितीय आधार नंबर दर्ज करें।`);
+      alert(`अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से अन्य छात्र "${dupAadhaar.studentName}" (${dupAadhaar.schoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`);
       return;
     }
 
     const cleanBirthCert = (formData.birthCertNumber || '').trim().toLowerCase();
     if (cleanBirthCert) {
-      const dupBirth = otherRecords.find(r => (r.birthCertNumber || '').trim().toLowerCase() === cleanBirthCert);
+      const dupBirth = otherRecords.find(r => isOtherStudent(r) && (r.birthCertNumber || '').trim().toLowerCase() === cleanBirthCert);
       if (dupBirth) {
-        alert(`अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${formData.birthCertNumber}) पहले से छात्र "${dupBirth.studentName}" (${dupBirth.schoolName}) के लिए दर्ज है! कृपया अद्वितीय क्रमांक दर्ज करें।`);
+        alert(`अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${formData.birthCertNumber}) पहले से अन्य छात्र "${dupBirth.studentName}" (${dupBirth.schoolName}) के लिए दर्ज है!`);
         return;
       }
     }

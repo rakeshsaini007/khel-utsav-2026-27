@@ -552,6 +552,23 @@ function doGet(e) {
     const data = sheet.getDataRange().getValues();
     const rows = [];
     
+    function formatDobForOutput(val) {
+      if (!val) return "";
+      if (val instanceof Date) {
+        return Utilities.formatDate(val, Session.getScriptTimeZone() || "GMT+5:30", "yyyy-MM-dd");
+      }
+      var str = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      var slash = str.split("/");
+      if (slash.length === 3) {
+        if (slash[0].length === 4) return slash[0] + "-" + slash[1].padStart(2, "0") + "-" + slash[2].padStart(2, "0");
+        var y = slash[2];
+        if (y.length === 2) y = "20" + y;
+        return y + "-" + slash[1].padStart(2, "0") + "-" + slash[0].padStart(2, "0");
+      }
+      return str;
+    }
+
     for (let i = 3; i < data.length; i++) {
       const row = data[i];
       if (!row[1] && !row[2] && !row[5] && !row[6] && !row[7]) continue; // Skip blank rows
@@ -573,7 +590,7 @@ function doGet(e) {
         nyayPanchayat: row[12],
         schoolType: row[13],
         admissionNumber: String(row[14] || "").replace(/^'/, ""),
-        dob: row[15],
+        dob: formatDobForOutput(row[15]),
         aadhaarNumber: String(row[16] || "").replace(/^'/, ""),
         birthCertNumber: String(row[17] || ""),
         birthCertAuthority: row[18],
@@ -725,10 +742,48 @@ function doPost(e) {
       });
     }
 
+    // Helper: जांचें कि क्या रिकॉर्ड उसी छात्र का है (Same Student Check)
+    // यदि "विजेता का नाम", "पिता का नाम", "कक्षा" और "यू-डायस कोड" समान हैं तो डेटा उसी छात्र का है और सबमिशन स्वीकार्य है।
+    function isSameStudentInScript(r) {
+      function normName(val) {
+        return String(val || "")
+          .trim()
+          .toLowerCase()
+          .replace(/^(श्री|श्रीमती|shri|smt|mr|mr\.|mrs|mrs\.|km|km\.|कुमारी)\s+/i, "")
+          .replace(/\s+/g, " ");
+      }
+      function normClass(val) {
+        const str = String(val || "").trim();
+        const d = str.replace(/[^0-9]/g, "");
+        return d || str.toLowerCase();
+      }
+      const rName = normName(r[7]);
+      const fName = normName(studentName);
+      const rFather = normName(r[8]);
+      const fFather = normName(fatherName);
+      const rClass = normClass(r[9]);
+      const fClass = normClass(studentClass);
+      const rUdise = String(r[10] || "").replace(/^'/, "").replace(/[^0-9]/g, "").trim();
+      const fUdise = String(udiseCode || "").replace(/^'/, "").replace(/[^0-9]/g, "").trim();
+
+      return Boolean(
+        rName && fName && rName === fName &&
+        rFather && fFather && rFather === fFather &&
+        rClass && fClass && rClass === fClass &&
+        rUdise && fUdise && rUdise === fUdise
+      );
+    }
+
     for (let i = 3; i < data.length; i++) {
       if (targetRow && (i + 1) === targetRow) continue; // Skip current row if updating
 
       const r = data[i];
+
+      // यदि यह वही छात्र है (Same student participating in multiple games/events) - तो सबमिशन स्वीकार्य है
+      if (isSameStudentInScript(r)) {
+        continue;
+      }
+
       const rPen = String(r[5] || "").replace(/^'/, "").trim();
       const rUnique = String(r[6] || "").replace(/^'/, "").trim();
       const rStudentName = String(r[7] || "").trim();
@@ -739,28 +794,28 @@ function doPost(e) {
       if (cleanPen && rPen && rPen.toLowerCase() === cleanPen.toLowerCase()) {
         return createJsonResponse({
           status: "error",
-          message: `अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`
+          message: `अस्वीकार्य (Duplicate PEN): यह PEN (${cleanPen}) पहले से अन्य छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय PEN दर्ज करें।`
         });
       }
 
       if (cleanUnique && rUnique && rUnique.toLowerCase() === cleanUnique.toLowerCase()) {
         return createJsonResponse({
           status: "error",
-          message: `अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`
+          message: `अस्वीकार्य (Duplicate Unique ID): यह यूनिक आईडी नंबर (${cleanUnique}) पहले से अन्य छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय यूनिक आईडी दर्ज करें।`
         });
       }
 
       if (cleanAadhaar && rAadhaar && rAadhaar === cleanAadhaar) {
         return createJsonResponse({
           status: "error",
-          message: `अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`
+          message: `अस्वीकार्य (Duplicate Aadhaar): यह आधार नंबर पहले से अन्य छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! एक आधार नंबर केवल एक छात्र के लिए मान्य है।`
         });
       }
 
       if (cleanBirthCert && rBirthCert && rBirthCert === cleanBirthCert) {
         return createJsonResponse({
           status: "error",
-          message: `अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${birthCertNumber}) पहले से छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय जन्म प्रमाण पत्र क्रमांक दर्ज करें।`
+          message: `अस्वीकार्य (Duplicate Birth Certificate): यह जन्म प्रमाण पत्र क्रमांक (${birthCertNumber}) पहले से अन्य छात्र '${rStudentName}' (${rSchoolName}) के लिए दर्ज है! कृपया अद्वितीय जन्म प्रमाण पत्र क्रमांक दर्ज करें।`
         });
       }
     }
